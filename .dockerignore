@@ -1,0 +1,7 @@
+docker/
+.git
+__pycache__
+*.pyc
+uploads/
+data/
+.env

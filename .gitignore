@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+.venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 本地运行时生成的文件（用户数据，不应上传）
+data/
+uploads/
+certs/
+*.log
+
+# 上传工具
+*.sh
+!deploy/*.sh
+
+# OpenWrt 路由器上的实际配置脚本（个性化）
+# 不要上传这些文件
+/tmp/
+*.bak
+# 运行时文件
+*.zip
+*.log
+data/
+uploads/
+certs/
+__pycache__/
+*.pyc

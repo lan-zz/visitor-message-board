@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>访客留言板</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg:#0f1115;--card:#1a1d24;--border:#2a2e38;--text:#e4e6eb;--muted:#8b919e;
+    --primary:#4f7cff;--primary-hover:#6990ff;--danger:#ef4444;--success:#22c55e;
+    --radius:12px;
+  }
+  @media (prefers-color-scheme:light){
+    :root{--bg:#f5f7fa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--muted:#6b7280}
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+  .container{max-width:680px;margin:0 auto;padding:16px}
+  header{text-align:center;padding:24px 16px 16px}
+  header h1{font-size:24px;font-weight:600}
+  header p{color:var(--muted);font-size:14px;margin-top:4px}
+  .banner{background:rgba(79,124,255,.12);border:1px solid var(--primary);color:var(--text);font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:14px;line-height:1.5}
+  .banner code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px;font-size:12px}
+  .identity{display:inline-block;font-size:12px;padding:3px 10px;border-radius:999px;margin-bottom:12px;font-weight:600}
+  .identity.admin{background:rgba(34,197,94,.18);color:#22c55e;border:1px solid #22c55e}
+  .identity.guest{background:rgba(139,145,158,.18);color:var(--muted);border:1px solid var(--border)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+  .form-group{margin-bottom:12px}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input[type=text],textarea{width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:15px;font-family:inherit}
+  textarea{min-height:80px;resize:vertical}
+  input:focus,textarea:focus{outline:none;border-color:var(--primary)}
+  .file-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .file-btn{position:relative;overflow:hidden;display:inline-block}
+  .file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .btn{padding:12px 20px;border:none;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit;font-weight:500}
+  .btn-primary{background:var(--primary);color:#fff;width:100%}
+  .btn-primary:hover{background:var(--primary-hover)}
+  .btn-primary:active{transform:scale(.98)}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+  .btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border);padding:8px 14px;font-size:13px}
+  .media-preview{margin-top:8px;display:none}
+  .media-preview img,.media-preview video,.media-preview audio{max-width:100%;border-radius:8px}
+  .media-preview .filename{font-size:12px;color:var(--muted);margin-top:4px}
+  .record-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .record-btn{flex:0 0 auto;width:48px;height:48px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .record-btn.recording{animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .record-time{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .msg-list{margin-top:8px}
+  .msg-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;position:relative}
+  .msg-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;padding-right:64px}
+  .msg-name{font-weight:600;font-size:14px}
+  .msg-time{font-size:12px;color:var(--muted);white-space:nowrap}
+  .msg-content{font-size:14px;white-space:pre-wrap;word-break:break-word}
+  .msg-media{margin-top:8px}
+  .msg-media img,.msg-media video{max-width:100%;border-radius:8px}
+  .msg-media audio{width:100%}
+  .del-btn{position:absolute;top:10px;right:10px;background:transparent;border:1px solid var(--danger);color:var(--danger);font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer}
+  .del-btn:hover{background:var(--danger);color:#fff}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--success);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:1000;max-width:90vw;text-align:center}
+  .toast.show{opacity:1}
+  .toast.error{background:var(--danger)}
+  .loading{text-align:center;color:var(--muted);padding:20px;font-size:14px}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px}
+  .tab-bar{display:flex;gap:8px;margin-bottom:12px}
+  .tab{flex:1;padding:8px;text-align:center;background:transparent;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;color:var(--muted)}
+  .tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📝 访客留言板</h1>
+    <p>扫码连 Wi-Fi 后留下你的留言</p>
+  </header>
+
+  <div id="identity-wrap" style="text-align:center"></div>
+
+  <div class="banner" id="media-banner">
+    💡 发送<b>图片/视频</b>请在手机<b>浏览器</b>中打开 <code>http://192.168.8.1:8090</code>。<br>
+    <span id="voice-hint"></span>
+  </div>
+
+  <div class="card">
+    <div class="form-group">
+      <label>你的称呼（可选）</label>
+      <input type="text" id="name" maxlength="50" placeholder="匿名访客">
+    </div>
+
+    <div class="tab-bar">
+      <div class="tab active" data-tab="text">文字</div>
+      <div class="tab" data-tab="media">图片/视频</div>
+      <div class="tab" data-tab="voice">语音</div>
+    </div>
+
+    <div id="tab-text">
+      <div class="form-group">
+        <label>留言内容</label>
+        <textarea id="content" maxlength="2000" placeholder="写下你想说的话..."></textarea>
+      </div>
+    </div>
+
+    <div id="tab-media" style="display:none">
+      <div class="file-row">
+        <span class="btn btn-secondary file-btn">
+          选择文件
+          <input type="file" id="file-input" accept="image/*,video/*">
+        </span>
+        <span class="filename" id="file-name" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div class="media-preview" id="media-preview"></div>
+      <div class="note">图片/视频需在手机浏览器打开 <code>http://192.168.8.1:8090</code> 后上传（弹窗内通常无法选文件）。</div>
+    </div>
+
+    <div id="tab-voice" style="display:none">
+      <div id="voice-secure" style="display:none">
+        <div class="record-row">
+          <button class="record-btn" id="record-btn">🎤</button>
+          <span class="record-time" id="record-time">点击录音（最长 5 分钟）</span>
+        </div>
+        <audio id="voice-playback" controls style="display:none;width:100%;margin-top:8px"></audio>
+        <div class="note">🎙️ 已处于安全连接，可直接录音。</div>
+      </div>
+      <div id="voice-insecure">
+        <a class="btn btn-primary" id="voice-jump" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">🔗 点此打开语音留言（安全连接）</a>
+        <div class="note">⚠️ 浏览器出于安全限制，<b>录音需要 HTTPS</b>。点击上方按钮跳转到安全页面；首次访问会提示「此连接非私人连接 / 不安全」，点「继续 / 高级 → 继续」即可正常使用（自签证书的唯一一次提示）。</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="submit-btn" style="margin-top:16px">发送留言</button>
+  </div>
+
+  <div class="msg-list">
+    <h3 style="font-size:16px;margin-bottom:12px" id="list-title">最近留言</h3>
+    <div id="msg-list-content">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MAX_MB = {{ max_upload_mb }};
+let selectedFile = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordStartTime = 0;
+let recordTimer = null;
+let recordedBlob = null;
+let isAdmin = false;
+
+// 跳转到 HTTPS 语音页面（语音页在 8091，自签证书）
+function voiceUrl() {
+  const host = window.location.hostname;
+  // 管理员走 LAN IP；访客统一走 guest 网关 192.168.8.1
+  const base = host.startsWith('192.168.2.') ? host : '192.168.8.1';
+  return 'https://' + base + ':8091' + window.location.pathname;
+}
+
+// 自适应：已处于安全连接则显示录音器，否则显示跳转按钮
+(function setupVoice() {
+  const secure = window.isSecureContext;
+  const vs = document.getElementById('voice-secure');
+  const vi = document.getElementById('voice-insecure');
+  if (secure) { vs.style.display = ''; vi.style.display = 'none'; }
+  else { vs.style.display = 'none'; vi.style.display = ''; }
+  const hint = document.getElementById('voice-hint');
+  if (secure) {
+    hint.innerHTML = '🎙️ 当前已是安全连接，可直接在「语音」页录音。';
+  } else {
+    hint.innerHTML = '🎤 <b>语音留言</b>需安全连接：<a id="voice-jump-top" style="color:var(--primary);text-decoration:underline">点此打开</a>（首次会提示「不安全」，点「继续」即可）。';
+    document.getElementById('voice-jump-top').addEventListener('click', () => { window.location.href = voiceUrl(); });
+  }
+  const jb = document.getElementById('voice-jump');
+  if (jb) jb.addEventListener('click', e => { e.preventDefault(); window.location.href = voiceUrl(); });
+})();
+
+// Tab 切换
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    ['text','media','voice'].forEach(t => {
+      document.getElementById('tab-'+t).style.display = (t === target) ? '' : 'none';
+    });
+  });
+});
+
+// 文件选择
+document.getElementById('file-input').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (f.size > MAX_MB * 1024 * 1024) {
+    showToast('文件超过 ' + MAX_MB + 'MB 限制', true);
+    e.target.value = '';
+    return;
+  }
+  selectedFile = f;
+  document.getElementById('file-name').textContent = f.name + ' (' + (f.size/1024/1024).toFixed(2) + ' MB)';
+  const preview = document.getElementById('media-preview');
+  preview.style.display = 'block';
+  preview.innerHTML = '';
+  if (f.type.startsWith('image/')) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    preview.appendChild(img);
+  } else if (f.type.startsWith('video/')) {
+    const vid = document.createElement('video');
+    vid.src = URL.createObjectURL(f);
+    vid.controls = true;
+    preview.appendChild(vid);
+  }
+});
+
+// 录音
+const recordBtn = document.getElementById('record-btn');
+recordBtn.addEventListener('click', async () => {
+  if (!window.isSecureContext) {
+    showToast('当前为 HTTP，浏览器禁止录音，请用文字/图片留言', true);
+    return;
+  }
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: getAudioMime() });
+    mediaRecorder.ondataavailable = e => { if (e.data.size) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      clearInterval(recordTimer);
+      stream.getTracks().forEach(t => t.stop());
+      recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+      const pb = document.getElementById('voice-playback');
+      pb.src = URL.createObjectURL(recordedBlob);
+      pb.style.display = 'block';
+      document.getElementById('record-time').textContent = '录音完成 (' + (recordedBlob.size/1024).toFixed(1) + ' KB)';
+      recordBtn.classList.remove('recording');
+      recordBtn.textContent = '🎤';
+    };
+    mediaRecorder.start();
+    recordBtn.classList.add('recording');
+    recordBtn.textContent = '⏹';
+    recordStartTime = Date.now();
+    document.getElementById('record-time').textContent = '录音中... 00:00';
+    recordTimer = setInterval(() => {
+      const s = Math.floor((Date.now() - recordStartTime) / 1000);
+      const mm = String(Math.floor(s/60)).padStart(2,'0');
+      const ss = String(s%60).padStart(2,'0');
+      document.getElementById('record-time').textContent = '录音中... ' + mm + ':' + ss;
+      if (s >= 300) mediaRecorder.stop();
+    }, 1000);
+  } catch (err) {
+    showToast('无法访问麦克风：' + err.message, true);
+  }
+});
+
+function getAudioMime() {
+  const types = ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'];
+  for (const t of types) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+// 提交
+document.getElementById('submit-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('submit-btn');
+  const name = document.getElementById('name').value.trim() || '匿名访客';
+  const content = document.getElementById('content').value.trim();
+  const activeTab = document.querySelector('.tab.active').dataset.tab;
+
+  if (activeTab === 'text' && !content) {
+    showToast('请输入留言内容', true);
+    return;
+  }
+  if (activeTab === 'media' && !selectedFile) {
+    showToast('请选择文件', true);
+    return;
+  }
+  if (activeTab === 'voice' && !recordedBlob) {
+    showToast('请先录音', true);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '发送中...';
+
+  const fd = new FormData();
+  fd.append('name', name);
+  fd.append('content', content);
+
+  if (activeTab === 'media' && selectedFile) {
+    fd.append('file', selectedFile, selectedFile.name);
+  } else if (activeTab === 'voice' && recordedBlob) {
+    const ext = recordedBlob.type.includes('webm') ? 'webm' :
+                recordedBlob.type.includes('mp4') ? 'm4a' : 'ogg';
+    fd.append('file', recordedBlob, 'voice.' + ext);
+  }
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(data.error || ('提交失败 (HTTP ' + res.status + ')'));
+    showToast('✅ 留言成功，已通知主人');
+    document.getElementById('content').value = '';
+    document.getElementById('file-input').value = '';
+    document.getElementById('media-preview').style.display = 'none';
+    document.getElementById('file-name').textContent = '';
+    document.getElementById('voice-playback').style.display = 'none';
+    selectedFile = null;
+    recordedBlob = null;
+    loadMessages();
+  } catch (err) {
+    showToast(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '发送留言';
+  }
+});
+
+// 删除（管理员）
+async function deleteMessage(id, el) {
+  if (!confirm('确定删除这条留言？')) return;
+  try {
+    const res = await fetch('/api/messages/' + id, { method: 'DELETE' });
+    let data = {};
+    try { data = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(data.error || '删除失败');
+    showToast('已删除');
+    el.remove();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+// 加载留言
+async function loadMessages() {
+  try {
+    const res = await fetch('/api/messages');
+    const data = await res.json();
+    isAdmin = !!(data.identity && data.identity.is_admin);
+    renderIdentity(data.identity);
+    const list = document.getElementById('msg-list-content');
+    const msgs = data.messages || [];
+    document.getElementById('list-title').textContent = isAdmin
+      ? ('全部留言（共 ' + msgs.length + ' 条）')
+      : '我的留言';
+    if (msgs.length === 0) {
+      list.innerHTML = '<div class="empty">' + (isAdmin ? '还没有任何留言' : '你还没有留言，留下第一条吧') + '</div>';
+      return;
+    }
+    list.innerHTML = msgs.map(m => {
+      const time = new Date(m.created_at * 1000).toLocaleString('zh-CN');
+      let media = '';
+      if (m.media_path) {
+        const url = '/uploads/' + m.media_path;
+        if (m.media_type === 'image') {
+          media = '<div class="msg-media"><img src="' + url + '" loading="lazy"></div>';
+        } else if (m.media_type === 'video') {
+          media = '<div class="msg-media"><video src="' + url + '" controls preload="metadata"></video></div>';
+        } else if (m.media_type === 'audio') {
+          media = '<div class="msg-media"><audio src="' + url + '" controls></audio></div>';
+        }
+      }
+      const content = m.content ? '<div class="msg-content">' + escapeHtml(m.content) + '</div>' : '';
+      const delBtn = isAdmin ? '<button class="del-btn" onclick="deleteMessage(\'' + m.id + '\', this.parentNode)">删除</button>' : '';
+      return '<div class="msg-item">' + delBtn +
+        '<div class="msg-head"><span class="msg-name">' + escapeHtml(m.name) + '</span><span class="msg-time">' + time + '</span></div>' +
+        content + media + '</div>';
+    }).join('');
+  } catch (err) {
+    showToast('加载失败：' + err.message, true);
+  }
+}
+
+function renderIdentity(identity) {
+  const wrap = document.getElementById('identity-wrap');
+  if (!identity) return;
+  if (identity.is_admin) {
+    wrap.innerHTML = '<span class="identity admin">🔧 管理员视角 · 可见全部留言</span>';
+  } else {
+    const mac = identity.viewer_mac || '未知';
+    wrap.innerHTML = '<span class="identity guest">👤 访客视角 · 仅显示你的留言（设备 ' + escapeHtml(mac) + '）</span>';
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+loadMessages();
+</script>
+</body>
+</html>

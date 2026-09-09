@@ -1,0 +1,6 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+.github/** text eol=lf
+.dockerignore text eol=lf

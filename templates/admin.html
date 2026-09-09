@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>访客留言板 · 管理后台</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f1115;--card:#1a1d24;--border:#2a2e38;--text:#e4e6eb;--muted:#8b919e;
+    --primary:#4f7cff;--primary-hover:#6990ff;--danger:#ef4444;--success:#22c55e;
+    --warning:#f59e0b;--radius:12px;
+  }
+  @media(prefers-color-scheme:light){
+    :root{--bg:#f5f7fa;--card:#fff;--border:#e5e7eb;--text:#1f2937;--muted:#6b7280}
+  }
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5}
+  .container{max-width:720px;margin:0 auto;padding:20px 16px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:24px}
+  header h1{font-size:20px;font-weight:600}
+  .nav{display:flex;gap:8px}
+  .nav a{padding:6px 14px;border-radius:6px;background:var(--card);border:1px solid var(--border);color:var(--muted);text-decoration:none;font-size:13px}
+  .nav a.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+  h2{font-size:16px;font-weight:600;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+  label{font-size:13px;color:var(--muted);font-weight:500}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:14px;font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)}
+  .field-note{font-size:12px;color:var(--muted);margin-top:4px}
+  .field-hint{display:flex;align-items:flex-start;gap:6px;background:rgba(79,124,255,.1);border:1px solid rgba(79,124,255,.3);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--muted);line-height:1.5;margin-top:4px}
+  .field-hint .icon{flex-shrink:0;margin-top:1px}
+  .btn{padding:10px 20px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:500;font-family:inherit;transition:opacity .2s}
+  .btn-primary{background:var(--primary);color:#fff;width:100%;margin-top:8px}
+  .btn-primary:hover{background:var(--primary-hover)}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+  .btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border);padding:8px 14px;font-size:13px;width:auto}
+  .btn-secondary:hover{border-color:var(--primary);color:var(--primary)}
+  .btn-row{display:flex;gap:8px;margin-top:20px}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+  .toggle-row:last-child{border-bottom:none}
+  .toggle-row .label{font-size:14px;font-weight:500}
+  .toggle-row .desc{font-size:12px;color:var(--muted);margin-top:2px}
+  .toggle{flex-shrink:0;position:relative;width:44px;height:24px}
+  .toggle input{opacity:0;width:0;height:0}
+  .toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:12px;cursor:pointer;transition:.2s}
+  .toggle-slider::before{content:'';position:absolute;height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .toggle input:checked + .toggle-slider{background:var(--primary)}
+  .toggle input:checked + .toggle-slider::before{transform:translateX(20px)}
+  .platform-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .platform-card{padding:12px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .2s}
+  .platform-card:hover{border-color:var(--muted)}
+  .platform-card.selected{border-color:var(--primary);background:rgba(79,124,255,.1)}
+  .platform-card input{display:none}
+  .platform-card .p-name{font-size:14px;font-weight:600;margin-bottom:2px}
+  .platform-card .p-desc{font-size:12px;color:var(--muted)}
+  .platform-card .p-icon{font-size:20px;margin-right:6px}
+  .platform-card .p-check{float:right;font-size:16px;color:var(--primary)}
+  .cfg-section{display:none;margin-top:12px;padding:14px;background:var(--bg);border-radius:8px;border:1px solid var(--border)}
+  .cfg-section.active{display:block}
+  .row{display:flex;gap:12px}
+  .row .form-row{flex:1}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--success);color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:1000}
+  .toast.show{opacity:1}
+  .toast.error{background:var(--danger)}
+  .toast.warning{background:var(--warning)}
+  .divider{height:1px;background:var(--border);margin:20px 0}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .badge.on{background:rgba(34,197,94,.15);color:#22c55e;border:1px solid #22c55e}
+  .badge.off{background:rgba(139,145,158,.15);color:var(--muted);border:1px solid var(--border)}
+  .status-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:13px;margin-bottom:16px}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+  .status-dot.ok{background:var(--success);box-shadow:0 0 6px var(--success)}
+  .status-dot.err{background:var(--danger)}
+  .info-box{background:rgba(79,124,255,.1);border:1px solid rgba(79,124,255,.3);border-radius:8px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+  .info-box strong{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>📝 访客留言板 · 管理后台</h1>
+    <div class="nav">
+      <a href="/" class="">留言板</a>
+      <a href="/admin" class="active">推送配置</a>
+    </div>
+  </header>
+
+  <!-- 状态栏 -->
+  <div class="status-bar" id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">加载中...</span>
+    <span class="badge off" id="push-badge">推送未启用</span>
+  </div>
+
+  <div class="info-box">
+    <strong>管理员访问限制：</strong>只有从 <strong>192.168.2.x</strong> 内网访问此页面才能配置推送。
+    访客（192.168.8.x）无法访问管理后台。
+  </div>
+
+  <!-- 推送总开关 -->
+  <div class="card">
+    <h2>推送通知</h2>
+    <div class="toggle-row">
+      <div>
+        <div class="label">启用推送</div>
+        <div class="desc">关闭后不会发送任何通知</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="push-enabled" onchange="togglePlatform()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- 推送平台选择 -->
+    <div id="platform-section" style="margin-top:16px;display:none">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:500">选择推送平台</div>
+      <div class="platform-cards">
+        <label class="platform-card" data-platform="bark" onclick="selectPlatform('bark')">
+          <input type="radio" name="platform" value="bark">
+          <div class="p-name"><span class="p-icon">🍎</span>Bark<span class="p-check" id="check-bark">✓</span></div>
+          <div class="p-desc">iOS 通知，消息直达手机</div>
+        </label>
+        <label class="platform-card" data-platform="feishu" onclick="selectPlatform('feishu')">
+          <input type="radio" name="platform" value="feishu">
+          <div class="p-name"><span class="p-icon">📮</span>飞书<span class="p-check" id="check-feishu">✓</span></div>
+          <div class="p-desc">飞书群机器人 Webhook</div>
+        </label>
+        <label class="platform-card" data-platform="wecom" onclick="selectPlatform('wecom')">
+          <input type="radio" name="platform" value="wecom">
+          <div class="p-name"><span class="p-icon">💬</span>企业微信<span class="p-check" id="check-wecom">✓</span></div>
+          <div class="p-desc">企业微信群机器人</div>
+        </label>
+        <label class="platform-card" data-platform="dingtalk" onclick="selectPlatform('dingtalk')">
+          <input type="radio" name="platform" value="dingtalk">
+          <div class="p-name"><span class="p-icon">🔔</span>钉钉<span class="p-check" id="check-dingtalk">✓</span></div>
+          <div class="p-desc">钉钉群机器人（支持加签）</div>
+        </label>
+      </div>
+
+      <!-- Bark 配置 -->
+      <div class="cfg-section" id="cfg-bark">
+        <div class="form-row">
+          <label>Bark Key</label>
+          <input type="text" id="bark-key" placeholder="例如：你的BarkKey">
+          <div class="field-hint">
+            <span class="icon">💡</span>
+            打开 Bark App → 点击左上角头像 → 获取「Bark URL」中的 Key 部分。
+            URL 格式：`https://api.day.app/你的BarkKey`，Key 即 `你的BarkKey`。
+          </div>
+        </div>
+      </div>
+
+      <!-- 飞书配置 -->
+      <div class="cfg-section" id="cfg-feishu">
+        <div class="form-row">
+          <label>飞书 Webhook 地址</label>
+          <input type="text" id="feishu-webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx">
+          <div class="field-hint">
+            <span class="icon">💡</span>
+            飞书群 → 设置 → 群机器人 → 添加机器人 → 复制 Webhook 地址。
+          </div>
+        </div>
+      </div>
+
+      <!-- 企业微信配置 -->
+      <div class="cfg-section" id="cfg-wecom">
+        <div class="form-row">
+          <label>企业微信 Webhook 地址</label>
+          <input type="text" id="wecom-webhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx">
+          <div class="field-hint">
+            <span class="icon">💡</span>
+            企业微信群 → 添加群机器人 → 复制 Webhook URL。
+          </div>
+        </div>
+      </div>
+
+      <!-- 钉钉配置 -->
+      <div class="cfg-section" id="cfg-dingtalk">
+        <div class="row">
+          <div class="form-row">
+            <label>钉钉 Webhook 地址</label>
+            <input type="text" id="dingtalk-webhook" placeholder="https://oapi.dingtalk.com/robot/send?access_token=xxx">
+          </div>
+          <div class="form-row">
+            <label>加签密钥（可选）</label>
+            <input type="text" id="dingtalk-secret" placeholder="SEC... 开头的密钥">
+          </div>
+        </div>
+        <div class="field-hint">
+          <span class="icon">💡</span>
+          钉钉群 → 智能群助手 → 添加机器人 → 选择「自定义」→ 复制 Webhook URL。<br>
+          如开启「加签」，还需复制「密钥」（以 SEC 开头）。不使用加签可不填。
+        </div>
+      </div>
+
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="test-btn" onclick="testPush()" disabled>🔔 发送测试</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveConfig()" disabled>💾 保存配置</button>
+    </div>
+  </div>
+
+  <!-- 留言板参数（非推送） -->
+  <div class="card">
+    <h2>留言板参数</h2>
+    <div class="info-box" style="background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3)">
+      以下参数通过 <strong>环境变量</strong> 配置，修改后需重启容器生效。
+      容器部署时可通过 <code>-e MAX_UPLOAD_MB=500</code> 等方式传入。
+    </div>
+    <div class="row">
+      <div class="form-row">
+        <label>MAX_UPLOAD_MB（当前）</label>
+        <div style="padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px">{{ max_upload_mb }} MB</div>
+        <div class="field-note">单文件最大体积，超出提前拒绝（不在服务端落盘）</div>
+      </div>
+      <div class="form-row">
+        <label>CLEANUP_DAYS（自动清理）</label>
+        <div style="padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px">30 天</div>
+        <div class="field-note">超过此天数的留言自动清理（可文件删后重建生效）</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:16px;font-size:12px;color:var(--muted)">
+    访客留言板 · 访客 WiFi + 强制门户 + 多推送平台支持
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let currentPlatform = 'bark';
+
+(async function init() {
+  // 检测是否为管理员（只有 LAN 能访问管理后台）
+  try {
+    const r = await fetch('/api/messages');
+    const d = await r.json();
+    if (!d.identity || !d.identity.is_admin) {
+      showToast('⚠️ 非管理员身份，推送配置仅供查看', true);
+      document.getElementById('save-btn').disabled = true;
+      document.getElementById('test-btn').disabled = true;
+    }
+  } catch(e) {}
+
+  // 加载已有配置
+  try {
+    const r = await fetch('/api/config');
+    if (r.ok) {
+      const d = await r.json();
+      const cfg = d.config || {};
+      document.getElementById('push-enabled').checked = cfg.enabled || false;
+      document.getElementById('push-badge').textContent = cfg.enabled ? '推送已启用' : '推送未启用';
+      document.getElementById('push-badge').className = 'badge ' + (cfg.enabled ? 'on' : 'off');
+      document.getElementById('status-dot').className = 'status-dot ' + (cfg.enabled ? 'ok' : '');
+      document.getElementById('status-text').textContent = cfg.enabled ? '推送已启用' : '推送未启用';
+
+      if (cfg.enabled) {
+        document.getElementById('platform-section').style.display = '';
+        selectPlatform(cfg.platform || 'bark');
+        // 填入各平台字段
+        if (cfg.bark)        document.getElementById('bark-key').value        = cfg.bark.key        || '';
+        if (cfg.feishu)      document.getElementById('feishu-webhook').value  = cfg.feishu.webhook  || '';
+        if (cfg.wecom)       document.getElementById('wecom-webhook').value  = cfg.wecom.webhook   || '';
+        if (cfg.dingtalk)    document.getElementById('dingtalk-webhook').value = cfg.dingtalk.webhook || '';
+        if (cfg.dingtalk)    document.getElementById('dingtalk-secret').value = cfg.dingtalk.secret || '';
+      }
+    }
+  } catch(e) {
+    document.getElementById('status-text').textContent = '获取配置失败';
+    document.getElementById('status-dot').className = 'status-dot err';
+  }
+
+  document.getElementById('save-btn').disabled = false;
+  document.getElementById('test-btn').disabled = !document.getElementById('push-enabled').checked;
+})();
+
+function togglePlatform() {
+  const enabled = document.getElementById('push-enabled').checked;
+  document.getElementById('platform-section').style.display = enabled ? '' : 'none';
+  document.getElementById('test-btn').disabled = !enabled;
+  document.getElementById('push-badge').textContent = enabled ? '推送已启用' : '推送未启用';
+  document.getElementById('push-badge').className = 'badge ' + (enabled ? 'on' : 'off');
+  document.getElementById('status-dot').className = 'status-dot ' + (enabled ? 'ok' : '');
+  document.getElementById('status-text').textContent = enabled ? '推送已启用' : '推送未启用';
+}
+
+function selectPlatform(p) {
+  currentPlatform = p;
+  document.querySelectorAll('.platform-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.platform === p);
+  });
+  document.querySelectorAll('.cfg-section').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('cfg-' + p);
+  if (el) el.classList.add('active');
+}
+
+async function testPush() {
+  const btn = document.getElementById('test-btn');
+  btn.disabled = true;
+  btn.textContent = '🔔 发送中...';
+  try {
+    const cfg = buildConfig();
+    const r = await fetch('/api/config/test', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cfg)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast(`✅ 测试成功！${d.platform} 推送已发出，请检查手机/群里是否收到`);
+    } else {
+      showToast(`❌ 测试失败：${d.message}`, true);
+    }
+  } catch(e) {
+    showToast('❌ 网络错误', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔔 发送测试';
+  }
+}
+
+function buildConfig() {
+  const enabled = document.getElementById('push-enabled').checked;
+  const platform = currentPlatform;
+  const cfg = { enabled, platform };
+  if (platform === 'bark') {
+    cfg.bark = { key: document.getElementById('bark-key').value.trim() };
+  } else if (platform === 'feishu') {
+    cfg.feishu = { webhook: document.getElementById('feishu-webhook').value.trim() };
+  } else if (platform === 'wecom') {
+    cfg.wecom = { webhook: document.getElementById('wecom-webhook').value.trim() };
+  } else if (platform === 'dingtalk') {
+    cfg.dingtalk = {
+      webhook: document.getElementById('dingtalk-webhook').value.trim(),
+      secret:  document.getElementById('dingtalk-secret').value.trim()
+    };
+  }
+  return cfg;
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = '💾 保存中...';
+  try {
+    const cfg = buildConfig();
+    const r = await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cfg)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast('✅ 配置已保存！');
+    } else {
+      showToast('❌ 保存失败：' + (d.error || d.message), true);
+    }
+  } catch(e) {
+    showToast('❌ 网络错误', true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 保存配置';
+  }
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+</script>
+</body>
+</html>
