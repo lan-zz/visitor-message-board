@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Docker: arm64+x86_64](https://img.shields.io/badge/Docker-arm64%2bx86__64-2496ed?style=flat-square&logo=docker)](https://github.com/lan-zz/visitor-message-board/pkgs/container/visitor-message-board)
 
-> 访客连上 WiFi → 自动弹出留言板 → 提交文字/图片/视频/语音 → 主人收到推送通知
+> 访客连上 WiFi → 自动弹出留言板 → 提交文字/图片/视频 → 主人收到推送通知
 
 访客 WiFi 与内网完全隔离，支持 Bark / 飞书 / 企业微信 / 钉钉四种推送渠道，后台可视化管理。
 
@@ -20,7 +20,7 @@
 |------|------|
 | **强制门户** | 访客连上开放 WiFi 后自动弹出留言板（无需输密码） |
 | **访客隔离** | 访客只能访问留言板，无法访问内网设备和外网 |
-| **多媒体留言** | 文字 / 图片 / 视频 / 语音（>5 分钟长录音） |
+| **多媒体留言** | 文字 / 图片 / 视频 |
 | **多平台推送** | Bark（iOS）/ 飞书 / 企业微信 / 钉钉，可视化配置 |
 | **访客身份识别** | 按 MAC 地址区分不同访客，访客只看到自己的留言 |
 | **管理员视角** | 内网 192.168.2.x 可删任意留言、查看全部 |
@@ -97,25 +97,10 @@ mkdir -p uploads data certs templates
 │   └── admin.html      # 管理后台（推送配置）
 ├── uploads/            # 媒体文件（自动创建）
 ├── data/               # 数据库+配置（自动创建）
-└── certs/              # HTTPS 证书（见下方）
+└── certs/              # HTTPS 证书（可选）
 ```
 
-### 3. 生成自签证书（HTTPS 语音必需）
-
-> 语音录音需要安全上下文（HTTPS），必须先生成证书。
-> 自签证书会在手机浏览器弹一次警告，点「继续」即可正常使用。
-
-```bash
-cd /mnt/sda1/message-board/certs
-
-# 生成私钥和证书（有效期 10 年，SAN 含 192.168.8.1 和 192.168.2.1/2）
-openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
-  -keyout board.key -out board.crt -days 3650 -nodes \
-  -subj "/CN=VisitorBoard" \
-  -addext "subjectAltName=DNS:localhost,IP:192.168.8.1,IP:192.168.2.1,IP:192.168.2.2"
-```
-
-### 4. 配置 Guest WiFi 网络（OpenWrt LuCI）
+### 3. 配置 Guest WiFi 网络（OpenWrt LuCI）
 
 在 LuCI → 网络 → 无线中：
 
@@ -132,35 +117,29 @@ openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
 在 LuCI → 网络 → 防火墙中：
 
 - 新建区域 `guest_zone`，Input=Reject，Output=Accept，Forward=Reject
-- 放行：DNS（53）、DHCP（67）、HTTP（8090）、HTTPS（8091）
+- 放行：DNS（53）、DHCP（67）、HTTP（8090）
 - 拒绝：到 wan、到 lan
 - Guest 区域转发到 wan：关闭
 
-### 5. 配置 DNS 劫持 + 强制门户（nftables）
+### 4. 配置 DNS 劫持 + 强制门户
 
 ```bash
-# SSH 到路由器，执行以下命令
+# SSH 到路由器，推荐使用 UCI 配置防火墙 DNAT（持久化）
 
-# === Guest 接口入方向 DNAT（80/443 → 留言板）===
-# 将访客的 HTTP/HTTPS 流量重定向到留言板
-# 192.168.8.2 是留言板容器实际 IP（host 网络模式下就是路由器本身）
-
-# 在 /etc/firewall.user 中添加（持久化）：
-cat >> /etc/firewall.user << 'EOF'
-
-# === Guest WiFi → 留言板强制门户 ===
-# Guest DNAT：访客访问任何网站 → 跳转留言板
-iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 80 \
-  -j DNAT --to-destination 192.168.8.1:8090
-iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 443 \
-  -j DNAT --to-destination 192.168.8.1:8091
-EOF
-
-# 重载防火墙
+uci set firewall.guest_cap80=redirect
+uci set firewall.guest_cap80.name='Guest-Captive-80'
+uci set firewall.guest_cap80.src='guest'
+uci set firewall.guest_cap80.src_dport='80'
+uci set firewall.guest_cap80.proto='tcp'
+uci set firewall.guest_cap80.dest_ip='192.168.8.1'
+uci set firewall.guest_cap80.dest_port='8090'
+uci set firewall.guest_cap80.target='DNAT'
+uci set firewall.guest_cap80.dest='guest'
+uci commit firewall
 /etc/init.d/firewall reload
 ```
 
-### 6. 构建并启动容器
+### 5. 构建并启动容器
 
 ```bash
 cd /mnt/sda1/message-board
@@ -309,12 +288,10 @@ docker restart visitor-board
 OpenWrt Guest 网关 192.168.8.1
   │  nftables/iptables 强制门户
   │  HTTP(80) → DNAT → 本机 8090
-  │  HTTPS(443) → DNAT → 本机 8091 → 302 重定向到 HTTP
   │
   ▼
 访客留言板容器（--network host）
   │  HTTP  8090 ← 文字/图片/视频留言
-  │  HTTPS 8091 ← 语音录音（自签证书）
   │  读取 /tmp/dhcp.leases → 解析访客 MAC
   │
   ├──▶ 写入 /mnt/sda1/message-board/data/board.db（SQLite）
@@ -332,7 +309,7 @@ OpenWrt Guest 网关 192.168.8.1
 visitor-message-board/
 ├── app.py              # Flask 主应用（含全部 API）
 ├── push.py             # 多推送引擎（各平台推送实现）
-├── start.sh            # gunicorn 启动命令（双端口）
+├── start.sh            # gunicorn 启动命令
 ├── Dockerfile          # 容器镜像定义
 ├── README.md           # 本文档
 ├── INSTALL.md          # 详细安装步骤
@@ -372,7 +349,7 @@ visitor-message-board/
 |------|------|
 | 📊 容器状态 | 实时显示运行/停止状态、健康检查、启动时间 |
 | ▶⏹🔄 启停控制 | 一键启动、停止、重启留言板容器 |
-| 🔗 快捷链接 | 管理后台、访客留言板、语音留言入口 |
+| 🔗 快捷链接 | 管理后台、访客留言板 |
 | 📋 日志查看 | 实时查看容器日志（30/50/100/200行可选） |
 | 📶 WiFi 信息 | 显示 SSID、网关、DHCP 范围、强制门户配置 |
 
@@ -467,21 +444,6 @@ docker pull ghcr.io/lan-zz/visitor-message-board:latest
 
 访客可能手动关闭了弹窗。手动打开浏览器访问任意 HTTP 网站（如 `http://example.com`），
 DNS 劫持会将其引导到留言板。HTTPS 网站无法劫持（正常行为）。
-
-### Q: 语音录音按钮点不了？
-
-语音需要安全上下文（麦克风 API 仅在 HTTPS 下可用）。
-- 方式一：在留言板页面顶部点击「🔗 点此打开语音留言」，跳转到 `https://192.168.8.1:8091`（首次会提示证书不安全，点「继续」即可）
-- 方式二：在手机浏览器地址栏直接输入 `https://192.168.8.1:8091`
-
-### Q: HTTPS 证书警告能消除吗？
-
-**不能消除**。自签证书在手机上必然弹「此连接非私人连接」警告，
-这是浏览器安全机制，无法绕过。访客点一次「继续/高级→继续」后即可正常使用。
-如需完全消除警告，需要：
-1. 拥有一个自己的域名（如 `xxx.duckdns.org`）
-2. 用 Let's Encrypt 签发受信任证书
-3. 将域名 DNS 解析到 `192.168.8.1`
 
 ### Q: 图片/视频选不了文件？
 

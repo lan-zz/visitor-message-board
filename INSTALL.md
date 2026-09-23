@@ -69,24 +69,7 @@ $hostkey = "ssh-ed25519 255 你的指纹"
 
 ---
 
-## 步骤 3：生成 HTTPS 证书
-
-```bash
-cd /mnt/sda1/message-board/certs
-
-openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
-  -keyout board.key -out board.crt -days 3650 -nodes \
-  -subj "/CN=VisitorBoard" \
-  -addext "subjectAltName=DNS:localhost,IP:192.168.8.1,IP:192.168.2.1,IP:192.168.2.2"
-```
-
-> **为什么需要 HTTPS 证书？**  
-> 浏览器的 `getUserMedia()` API（麦克风）只允许在安全上下文（HTTPS）下使用。
-> 自签证书会产生一次性的「不安全」警告，访客点一次「继续」即可，之后正常使用。
-
----
-
-## 步骤 4：配置 Guest 网络（LuCI 图形界面）
+## 步骤 3：配置 Guest 网络（LuCI 图形界面）
 
 ### 4.1 新建 Guest 接口
 
@@ -192,7 +175,6 @@ cat >> /etc/firewall.user << 'EOF'
 
 # ========== Visitor Board 强制门户 ==========
 # HTTP(80) → 留言板页面
-# HTTPS(443) → 留言板 HTTPS 服务（app.py 自动 302 重定向到 HTTP 留言板）
 
 # Guest 入方向 DNAT（访客 → 留言板）
 iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 80 \
@@ -200,7 +182,6 @@ iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 80 \
 
 # Guest 区域放行（input chain）
 iptables -A input_guest -p tcp --dport 8090 -j ACCEPT
-iptables -A input_guest -p tcp --dport 8091 -j ACCEPT
 iptables -A input_guest -p udp --dport 53  -j ACCEPT
 iptables -A input_guest -p udp --dport 67  -j ACCEPT
 
@@ -212,10 +193,6 @@ EOF
 # 重载防火墙
 /etc/init.d/firewall reload
 ```
-
-> ⚠️ **不要**添加 443 端口的 DNAT 规则！将 HTTPS 流量重定向到自签证书会导致浏览器不断重试 SSL 握手，
-> 页面会变得极慢甚至无法加载。访客访问 HTTPS 网站时连接自然失败，浏览器自动回退 HTTP 被留言板接管，
-> 这是标准的 captive portal 行为。
 
 ---
 
@@ -335,7 +312,6 @@ http://192.168.8.1:8090
 | 连上 WiFi 无弹窗 | DNS 劫持未生效 / 浏览器禁用了弹窗 |
 | 留言板打不开 | 容器未启动 / 端口被占用 / 防火墙规则缺失 |
 | 图片/视频发送失败 | 容器假死 / 磁盘空间不足 |
-| 语音按钮点不了 | 强制门户 webview 限制，用浏览器打开 |
 | Bark 收不到推送 | Bark Key 填错 / 容器无法访问外网 |
 | 访客能访问内网 | br-guest 桥接了内网物理网口 |
 | 5G 和 2.4G 只能开一个 | 单射频网卡限制，两频各需独立网卡 |
