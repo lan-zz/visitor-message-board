@@ -1,18 +1,46 @@
 <%+header%>
 
 <style>
+:root {
+	--vb-bg: #fff;
+	--vb-bg-soft: #f5f5f5;
+	--vb-bg-hover: #e0e0e0;
+	--vb-border: #eee;
+	--vb-border-input: #ccc;
+	--vb-text: #333;
+	--vb-text-muted: #666;
+	--vb-link: #1976d2;
+	--vb-shadow: 0 1px 3px rgba(0,0,0,0.1);
+	--vb-log-bg: #1e1e1e;
+	--vb-log-text: #d4d4d4;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--vb-bg: rgba(255,255,255,0.12);
+		--vb-bg-soft: rgba(255,255,255,0.08);
+		--vb-bg-hover: rgba(255,255,255,0.16);
+		--vb-border: rgba(255,255,255,0.15);
+		--vb-border-input: rgba(255,255,255,0.2);
+		--vb-text: #e5e7eb;
+		--vb-text-muted: #9ca3af;
+		--vb-link: #60a5fa;
+		--vb-shadow: 0 1px 3px rgba(0,0,0,0.3);
+		--vb-log-bg: rgba(0,0,0,0.4);
+		--vb-log-text: #d4d4d4;
+	}
+}
 .vb-card {
-	background: #fff;
+	background: var(--vb-bg);
 	border-radius: 8px;
 	padding: 20px;
 	margin-bottom: 16px;
-	box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+	box-shadow: var(--vb-shadow);
 }
 .vb-card h3 {
 	margin: 0 0 12px 0;
 	font-size: 16px;
-	color: #333;
-	border-bottom: 1px solid #eee;
+	color: var(--vb-text);
+	border-bottom: 1px solid var(--vb-border);
 	padding-bottom: 8px;
 }
 .vb-status-row {
@@ -64,20 +92,20 @@
 	margin-top: 12px;
 }
 .vb-link-item {
-	background: #f5f5f5;
+	background: var(--vb-bg-soft);
 	border-radius: 6px;
 	padding: 16px;
 	text-align: center;
 	text-decoration: none;
-	color: #333;
+	color: var(--vb-text);
 	transition: background 0.2s;
 }
-.vb-link-item:hover { background: #e0e0e0; }
-.vb-link-item .label { font-size: 13px; color: #666; margin-bottom: 4px; }
-.vb-link-item .url { font-size: 14px; font-weight: 500; color: #1976d2; word-break: break-all; }
+.vb-link-item:hover { background: var(--vb-bg-hover); }
+.vb-link-item .label { font-size: 13px; color: var(--vb-text-muted); margin-bottom: 4px; }
+.vb-link-item .url { font-size: 14px; font-weight: 500; color: var(--vb-link); word-break: break-all; }
 #vb-logs {
-	background: #1e1e1e;
-	color: #d4d4d4;
+	background: var(--vb-log-bg);
+	color: var(--vb-log-text);
 	font-family: 'Consolas', 'Monaco', monospace;
 	font-size: 12px;
 	padding: 12px;
@@ -94,8 +122,15 @@
 	gap: 6px 12px;
 	font-size: 14px;
 }
-.vb-info-grid .label { color: #666; font-weight: 500; }
-.vb-info-grid .value { color: #333; }
+.vb-info-grid .label { color: var(--vb-text-muted); font-weight: 500; }
+.vb-info-grid .value { color: var(--vb-text); }
+.vb-select {
+	padding: 2px 8px;
+	border: 1px solid var(--vb-border-input);
+	border-radius: 4px;
+	background: var(--vb-bg);
+	color: var(--vb-text);
+}
 </style>
 
 <div class="container">
@@ -134,17 +169,13 @@
 				<div class="label">访客留言板</div>
 				<div class="url">http://192.168.8.1:8090</div>
 			</a>
-			<a class="vb-link-item" id="link-https" href="https://192.168.8.1:8091" target="_blank" onclick="window.open(this.href,'_blank'); return false;">
-				<div class="label">语音留言 (HTTPS)</div>
-				<div class="url">https://192.168.8.1:8091</div>
-			</a>
 		</div>
 	</div>
 
 	<!-- 日志 -->
 	<div class="vb-card">
 		<h3>📋 容器日志
-			<select id="log-lines" onchange="loadLogs()" style="margin-left:12px;padding:2px 8px;border:1px solid #ccc;border-radius:4px;">
+			<select id="log-lines" class="vb-select" onchange="loadLogs()" style="margin-left:12px;">
 				<option value="30">30 行</option>
 				<option value="50" selected>50 行</option>
 				<option value="100">100 行</option>
@@ -163,7 +194,7 @@
 			<span class="label">网关地址：</span><span class="value">192.168.8.1</span>
 			<span class="label">DHCP 范围：</span><span class="value">192.168.8.100 - 192.168.8.150</span>
 			<span class="label">加密方式：</span><span class="value">开放（无密码）</span>
-			<span class="label">强制门户：</span><span class="value">HTTP→8090 / HTTPS→8091</span>
+			<span class="label">强制门户：</span><span class="value">HTTP(80) → DNAT → 8090</span>
 		</div>
 	</div>
 </div>
