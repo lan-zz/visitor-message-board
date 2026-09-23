@@ -191,14 +191,12 @@ uci commit dhcp
 cat >> /etc/firewall.user << 'EOF'
 
 # ========== Visitor Board 强制门户 ==========
-# Guest WiFi 流量 DNAT：80 → 留言板 HTTP，443 → 留言板 HTTPS
-# 注意：443 只能 DNAT 到 HTTPS 服务，不能到 HTTP（会导致 gunicorn 崩溃）
+# 仅拦截 HTTP(80) → 留言板页面，不要拦截 HTTPS(443)
+# 浏览器会因自签证书不断重试 SSL 握手，导致页面极慢
 
 # Guest 入方向 DNAT（访客 → 留言板）
 iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 80 \
   -j DNAT --to-destination 192.168.8.1:8090
-iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 443 \
-  -j DNAT --to-destination 192.168.8.1:8091
 
 # Guest 区域放行（input chain）
 iptables -A input_guest -p tcp --dport 8090 -j ACCEPT
@@ -215,8 +213,9 @@ EOF
 /etc/init.d/firewall reload
 ```
 
-> ⚠️ **不要**把 443 DNAT 到 HTTP（80）端口！TLS 握手被 gunicorn 解析会触发 `Invalid HTTP method` 错误，
-> 导致 worker 崩溃循环，容器进入「Up 但假死」状态。
+> ⚠️ **不要**添加 443 端口的 DNAT 规则！将 HTTPS 流量重定向到自签证书会导致浏览器不断重试 SSL 握手，
+> 页面会变得极慢甚至无法加载。访客访问 HTTPS 网站时连接自然失败，浏览器自动回退 HTTP 被留言板接管，
+> 这是标准的 captive portal 行为。
 
 ---
 
