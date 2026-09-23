@@ -416,6 +416,33 @@ rm -rf /tmp/luci-*
 
 > ⚠️ 依赖 Docker，请确保已安装 Docker。
 
+### 预编译安装包
+
+直接下载预编译包，不需要手动复制文件：
+
+| 架构 | OpenWrt ≤24 (opkg) | OpenWrt 25+ (apk) |
+|------|--------------------|--------------------|
+| **aarch64** | `luci-app-visitor-board_aarch64_generic.ipk` | `luci-app-visitor-board_aarch64_generic.apk` |
+| **x86_64** | `luci-app-visitor-board_x86_64.ipk` | `luci-app-visitor-board_x86_64.apk` |
+
+安装方法：
+
+```bash
+# OpenWrt ≤24
+scp luci-app-visitor-board_aarch64_generic.ipk root@路由器:/tmp/
+ssh root@路由器
+opkg install /tmp/luci-app-visitor-board_aarch64_generic.ipk
+rm /tmp/luci-app-visitor-board_aarch64_generic.ipk
+
+# OpenWrt 25+
+scp luci-app-visitor-board_aarch64_generic.apk root@路由器:/tmp/
+ssh root@路由器
+apk add --allow-untrusted /tmp/luci-app-visitor-board_aarch64_generic.apk
+rm /tmp/luci-app-visitor-board_aarch64_generic.apk
+```
+
+> 也可自行构建：`python packaging/build-packages.py`，产出在 `dist/` 目录。
+
 GitHub Actions 在每次 push 时自动构建并存放到 GitHub Container Registry（GHCR）。
 
 ```bash
