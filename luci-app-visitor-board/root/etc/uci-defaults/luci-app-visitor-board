@@ -1,0 +1,47 @@
+#!/bin/sh
+# 添加 LuCI 菜单项（兼容 LuCI 2.x）
+[ -e /usr/share/luci/menu.d/ ] && cat > /usr/share/luci/menu.d/luci-app-visitor-board.json << 'EOF'
+{
+  "admin/services/visitor-board": {
+    "title": "访客留言板",
+    "order": 60,
+    "action": {
+      "type": "firstchild"
+    }
+  },
+  "admin/services/visitor-board/status": {
+    "title": "状态管理",
+    "order": 1,
+    "action": {
+      "type": "template",
+      "path": "visitor-board/status"
+    }
+  },
+  "admin/services/visitor-board/action": {
+    "title": "容器操作",
+    "order": 2,
+    "action": {
+      "type": "handler",
+      "module": "luci.controller.visitor-board"
+    }
+  },
+  "admin/services/visitor-board/get_status": {
+    "title": "获取状态",
+    "order": 3,
+    "action": {
+      "type": "handler",
+      "module": "luci.controller.visitor-board"
+    }
+  },
+  "admin/services/visitor-board/get_logs": {
+    "title": "获取日志",
+    "order": 4,
+    "action": {
+      "type": "handler",
+      "module": "luci.controller.visitor-board"
+    }
+  }
+}
+EOF
+
+exit 0

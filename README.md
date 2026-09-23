@@ -27,6 +27,7 @@
 | **配置持久化** | 推送配置存入 `data/config.json`，重启不丢失 |
 | **自动清理** | 超过 30 天的旧留言自动删除 |
 | **单文件部署** | 一键脚本，修改代码后重启容器即可生效（无需重建镜像） |
+| **LuCI 管理界面** | LuCI 插件：容器状态监控、启停控制、日志查看、快捷链接 |
 
 ---
 
@@ -350,7 +351,70 @@ visitor-message-board/
 
 ---
 
+├── luci-app-visitor-board/  # LuCI 管理插件
+│   ├── Makefile                # OpenWrt 包构建文件
+│   ├── luasrc/controller/      # LuCI 控制器（路由+API）
+│   ├── luasrc/view/            # LuCI 页面模板
+│   └── root/usr/bin/           # 后端管理脚本
+
 ## 🐳 容器镜像（无需本地 build）
+
+---
+
+## 🔧 LuCI 管理插件（可选）
+
+提供 OpenWrt LuCI Web 界面管理，方便在路由器后台直接管理留言板容器。
+
+### 功能
+
+| 功能 | 说明 |
+|------|------|
+| 📊 容器状态 | 实时显示运行/停止状态、健康检查、启动时间 |
+| ▶⏹🔄 启停控制 | 一键启动、停止、重启留言板容器 |
+| 🔗 快捷链接 | 管理后台、访客留言板、语音留言入口 |
+| 📋 日志查看 | 实时查看容器日志（30/50/100/200行可选） |
+| 📶 WiFi 信息 | 显示 SSID、网关、DHCP 范围、强制门户配置 |
+
+### 安装方式
+
+**方式一：手动部署（推荐）**
+
+```bash
+# 1. 在路由器上创建目录
+mkdir -p /usr/lib/lua/luci/controller
+mkdir -p /usr/lib/lua/luci/view/visitor-board
+mkdir -p /usr/bin
+
+# 2. 上传文件（从本项目 luci-app-visitor-board/ 目录）
+# lucasrc/controller/visitor-board.lua → /usr/lib/lua/luci/controller/
+# luasrc/view/visitor-board/status.htm → /usr/lib/lua/luci/view/visitor-board/
+# root/usr/bin/visitor-board.sh        → /usr/bin/visitor-board.sh
+
+# 3. 设置权限
+chmod +x /usr/bin/visitor-board.sh
+
+# 4. 清除 LuCI 缓存
+rm -rf /tmp/luci-*
+```
+
+**方式二：使用 install 脚本**
+
+```bash
+# 上传整个 luci-app-visitor-board 目录到路由器后执行
+cd luci-app-visitor-board
+cp luasrc/controller/visitor-board.lua /usr/lib/lua/luci/controller/
+mkdir -p /usr/lib/lua/luci/view/visitor-board
+cp luasrc/view/visitor-board/status.htm /usr/lib/lua/luci/view/visitor-board/
+cp root/usr/bin/visitor-board.sh /usr/bin/
+chmod +x /usr/bin/visitor-board.sh
+rm -rf /tmp/luci-*
+```
+
+### 访问
+
+安装后在 LuCI 中访问：**服务 → 访客留言板**
+
+> ⚠️ 依赖 Docker，请确保已安装 Docker。
 
 GitHub Actions 在每次 push 时自动构建并存放到 GitHub Container Registry（GHCR）。
 

@@ -1,0 +1,246 @@
+<%+header%>
+
+<style>
+.vb-card {
+	background: #fff;
+	border-radius: 8px;
+	padding: 20px;
+	margin-bottom: 16px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.vb-card h3 {
+	margin: 0 0 12px 0;
+	font-size: 16px;
+	color: #333;
+	border-bottom: 1px solid #eee;
+	padding-bottom: 8px;
+}
+.vb-status-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+.vb-status-dot {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	display: inline-block;
+}
+.vb-status-dot.running { background: #4caf50; }
+.vb-status-dot.stopped { background: #f44336; }
+.vb-status-dot.unknown { background: #ff9800; }
+.vb-status-text {
+	font-size: 18px;
+	font-weight: bold;
+}
+.vb-status-text.running { color: #4caf50; }
+.vb-status-text.stopped { color: #f44336; }
+.vb-btn-group {
+	display: flex;
+	gap: 8px;
+	margin-top: 12px;
+	flex-wrap: wrap;
+}
+.vb-btn {
+	padding: 8px 20px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	transition: opacity 0.2s;
+}
+.vb-btn:hover { opacity: 0.85; }
+.vb-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.vb-btn.start { background: #4caf50; color: #fff; }
+.vb-btn.stop { background: #f44336; color: #fff; }
+.vb-btn.restart { background: #2196f3; color: #fff; }
+.vb-btn.link { background: #607d8b; color: #fff; text-decoration: none; display: inline-block; }
+.vb-link-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 12px;
+	margin-top: 12px;
+}
+.vb-link-item {
+	background: #f5f5f5;
+	border-radius: 6px;
+	padding: 16px;
+	text-align: center;
+	text-decoration: none;
+	color: #333;
+	transition: background 0.2s;
+}
+.vb-link-item:hover { background: #e0e0e0; }
+.vb-link-item .label { font-size: 13px; color: #666; margin-bottom: 4px; }
+.vb-link-item .url { font-size: 14px; font-weight: 500; color: #1976d2; word-break: break-all; }
+#vb-logs {
+	background: #1e1e1e;
+	color: #d4d4d4;
+	font-family: 'Consolas', 'Monaco', monospace;
+	font-size: 12px;
+	padding: 12px;
+	border-radius: 6px;
+	max-height: 400px;
+	overflow-y: auto;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	line-height: 1.5;
+}
+.vb-info-grid {
+	display: grid;
+	grid-template-columns: 120px 1fr;
+	gap: 6px 12px;
+	font-size: 14px;
+}
+.vb-info-grid .label { color: #666; font-weight: 500; }
+.vb-info-grid .value { color: #333; }
+</style>
+
+<div class="container">
+	<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+		<h2 style="margin:0;">📝 访客留言板管理</h2>
+		<button class="vb-btn restart" onclick="refreshStatus()" style="font-size:13px;padding:6px 14px;">🔄 刷新</button>
+	</div>
+
+	<!-- 状态卡片 -->
+	<div class="vb-card">
+		<h3>📊 容器状态</h3>
+		<div class="vb-status-row">
+			<span id="status-dot" class="vb-status-dot unknown"></span>
+			<span id="status-text" class="vb-status-text">加载中...</span>
+		</div>
+		<div class="vb-info-grid" id="status-info">
+			<span class="label">健康状态：</span><span class="value" id="health-info">--</span>
+			<span class="label">启动时间：</span><span class="value" id="uptime-info">--</span>
+		</div>
+		<div class="vb-btn-group">
+			<button class="vb-btn start" id="btn-start" onclick="doAction('start')">▶ 启动</button>
+			<button class="vb-btn stop" id="btn-stop" onclick="doAction('stop')">⏹ 停止</button>
+			<button class="vb-btn restart" id="btn-restart" onclick="doAction('restart')">🔄 重启</button>
+		</div>
+	</div>
+
+	<!-- 快捷链接 -->
+	<div class="vb-card">
+		<h3>🔗 快捷访问</h3>
+		<div class="vb-link-grid">
+			<a class="vb-link-item" id="link-admin" href="#" target="_blank">
+				<div class="label">管理后台</div>
+				<div class="url">http://192.168.2.1:8090/admin</div>
+			</a>
+			<a class="vb-link-item" id="link-board" href="#" target="_blank">
+				<div class="label">访客留言板</div>
+				<div class="url">http://192.168.8.1:8090</div>
+			</a>
+			<a class="vb-link-item" id="link-https" href="#" target="_blank">
+				<div class="label">语音留言 (HTTPS)</div>
+				<div class="url">https://192.168.8.1:8091</div>
+			</a>
+		</div>
+	</div>
+
+	<!-- 日志 -->
+	<div class="vb-card">
+		<h3>📋 容器日志
+			<select id="log-lines" onchange="loadLogs()" style="margin-left:12px;padding:2px 8px;border:1px solid #ccc;border-radius:4px;">
+				<option value="30">30 行</option>
+				<option value="50" selected>50 行</option>
+				<option value="100">100 行</option>
+				<option value="200">200 行</option>
+			</select>
+			<button class="vb-btn restart" onclick="loadLogs()" style="font-size:12px;padding:4px 12px;margin-left:8px;">刷新日志</button>
+		</h3>
+		<div id="vb-logs">加载中...</div>
+	</div>
+
+	<!-- WiFi 信息 -->
+	<div class="vb-card">
+		<h3>📶 访客 WiFi 信息</h3>
+		<div class="vb-info-grid">
+			<span class="label">SSID：</span><span class="value" id="wifi-ssid">--</span>
+			<span class="label">网关地址：</span><span class="value">192.168.8.1</span>
+			<span class="label">DHCP 范围：</span><span class="value">192.168.8.100 - 192.168.8.150</span>
+			<span class="label">加密方式：</span><span class="value">开放（无密码）</span>
+			<span class="label">强制门户：</span><span class="value">HTTP→8090 / HTTPS→8091</span>
+		</div>
+	</div>
+</div>
+
+<script>
+function refreshStatus() {
+	XHR.get('<%=url("admin/services/visitor-board/get_status")%>', null, function(x, data) {
+		if (!data) return;
+		var dot = document.getElementById('status-dot');
+		var text = document.getElementById('status-text');
+		var health = document.getElementById('health-info');
+		var uptime = document.getElementById('uptime-info');
+		var btnStart = document.getElementById('btn-start');
+		var btnStop = document.getElementById('btn-stop');
+
+		if (data.running) {
+			dot.className = 'vb-status-dot running';
+			text.className = 'vb-status-text running';
+			text.textContent = '运行中';
+			health.textContent = data.health === 'healthy' ? '✅ 正常' : (data.health === 'unhealthy' ? '⚠️ 异常' : '--');
+			btnStart.disabled = true;
+			btnStop.disabled = false;
+		} else {
+			dot.className = 'vb-status-dot stopped';
+			text.className = 'vb-status-text stopped';
+			text.textContent = '已停止';
+			health.textContent = '--';
+			btnStart.disabled = false;
+			btnStop.disabled = true;
+		}
+
+		if (data.uptime) {
+			var d = new Date(data.uptime);
+			uptime.textContent = d.toLocaleString('zh-CN');
+		} else {
+			uptime.textContent = '--';
+		}
+	});
+}
+
+function doAction(action) {
+	var btn = document.getElementById('btn-' + action);
+	if (btn) btn.disabled = true;
+
+	XHR.get('<%=url("admin/services/visitor-board/action")%>', { action: action }, function(x, data) {
+		setTimeout(refreshStatus, 1000);
+		if (action === 'restart') {
+			setTimeout(loadLogs, 2000);
+		}
+	});
+}
+
+function loadLogs() {
+	var lines = document.getElementById('log-lines').value;
+	XHR.get('<%=url("admin/services/visitor-board/get_logs")%>', { lines: lines }, function(x, data) {
+		var el = document.getElementById('vb-logs');
+		if (data && data.logs) {
+			el.textContent = data.logs;
+			el.scrollTop = el.scrollHeight;
+		} else {
+			el.textContent = '无法获取日志';
+		}
+	});
+}
+
+function loadWifiInfo() {
+	XHR.get('<%=url("admin/uci/get")%>', { config: 'wireless', section: 'default_radio0' }, function(x, data) {
+		if (data && data.values && data.values.ssid) {
+			document.getElementById('wifi-ssid').textContent = data.values.ssid;
+		}
+	});
+}
+
+// 初始化
+refreshStatus();
+loadLogs();
+loadWifiInfo();
+</script>
+
+<%+footer%>
