@@ -125,8 +125,17 @@
         <div class="note">🎙️ 已处于安全连接，可直接录音。</div>
       </div>
       <div id="voice-insecure">
-        <a class="btn btn-primary" id="voice-jump" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">🔗 点此打开语音留言（安全连接）</a>
-        <div class="note">⚠️ 浏览器出于安全限制，<b>录音需要 HTTPS</b>。点击上方按钮跳转到安全页面；首次访问会提示「此连接非私人连接 / 不安全」，点「继续 / 高级 → 继续」即可正常使用（自签证书的唯一一次提示）。</div>
+        <div id="voice-record-direct" style="display:none">
+          <div class="record-row">
+            <button class="record-btn" id="record-btn-http">🎤</button>
+            <span class="record-time" id="record-time-http">点击录音（最长 5 分钟）</span>
+          </div>
+          <audio id="voice-playback-http" controls style="display:none;width:100%;margin-top:8px"></audio>
+        </div>
+        <div id="voice-no-mic" style="display:none">
+          <div class="note" style="color:var(--danger)">⚠️ 浏览器拒绝了麦克风权限。请在浏览器设置中允许麦克风访问，或将录音文件用「媒体」标签上传。</div>
+        </div>
+        <div class="note" id="voice-hint-text">🎤 语音留言需要使用麦克风，点击上方录音按钮后请授权允许。</div>
       </div>
     </div>
 
@@ -153,30 +162,32 @@ let recordTimer = null;
 let recordedBlob = null;
 let isAdmin = false;
 
-// 跳转到 HTTPS 语音页面（语音页在 8091，自签证书）
-function voiceUrl() {
-  const host = window.location.hostname;
-  // 管理员走 LAN IP；访客统一走 guest 网关 192.168.8.1
-  const base = host.startsWith('192.168.2.') ? host : '192.168.8.1';
-  return 'https://' + base + ':8091' + window.location.pathname;
-}
-
-// 自适应：已处于安全连接则显示录音器，否则显示跳转按钮
+// 语音留言：尝试直接在当前页面录音（含 HTTP 页面）
 (function setupVoice() {
   const secure = window.isSecureContext;
   const vs = document.getElementById('voice-secure');
-  const vi = document.getElementById('voice-insecure');
-  if (secure) { vs.style.display = ''; vi.style.display = 'none'; }
-  else { vs.style.display = 'none'; vi.style.display = ''; }
-  const hint = document.getElementById('voice-hint');
+
   if (secure) {
-    hint.innerHTML = '🎙️ 当前已是安全连接，可直接在「语音」页录音。';
-  } else {
-    hint.innerHTML = '🎤 <b>语音留言</b>需安全连接：<a id="voice-jump-top" style="color:var(--primary);text-decoration:underline">点此打开</a>（首次会提示「不安全」，点「继续」即可）。';
-    document.getElementById('voice-jump-top').addEventListener('click', () => { window.location.href = voiceUrl(); });
+    // HTTPS 页面：显示标准录音器
+    vs.style.display = '';
+    return;
   }
-  const jb = document.getElementById('voice-jump');
-  if (jb) jb.addEventListener('click', e => { e.preventDefault(); window.location.href = voiceUrl(); });
+
+  // HTTP 页面：尝试获取麦克风权限
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(stream => {
+        // 麦克风可用，显示录音器
+        stream.getTracks().forEach(t => t.stop()); // 立即释放，录音时再获取
+        document.getElementById('voice-record-direct').style.display = '';
+      })
+      .catch(() => {
+        // 麦克风不可用
+        document.getElementById('voice-no-mic').style.display = '';
+      });
+  } else {
+    document.getElementById('voice-no-mic').style.display = '';
+  }
 })();
 
 // Tab 切换
@@ -237,7 +248,7 @@ recordBtn.addEventListener('click', async () => {
       clearInterval(recordTimer);
       stream.getTracks().forEach(t => t.stop());
       recordedBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-      const pb = document.getElementById('voice-playback');
+      const pb = document.getElementById(secure ? 'voice-playback' : 'voice-playback-http');
       pb.src = URL.createObjectURL(recordedBlob);
       pb.style.display = 'block';
       document.getElementById('record-time').textContent = '录音完成 (' + (recordedBlob.size/1024).toFixed(1) + ' KB)';
@@ -285,7 +296,7 @@ document.getElementById('submit-btn').addEventListener('click', async () => {
     return;
   }
   if (activeTab === 'voice' && !recordedBlob) {
-    showToast('请先录音', true);
+    showToast('请先录音（或切换到媒体标签上传音频文件）', true);
     return;
   }
 
