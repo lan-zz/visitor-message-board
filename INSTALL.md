@@ -191,8 +191,8 @@ uci commit dhcp
 cat >> /etc/firewall.user << 'EOF'
 
 # ========== Visitor Board 强制门户 ==========
-# 仅拦截 HTTP(80) → 留言板页面，不要拦截 HTTPS(443)
-# 浏览器会因自签证书不断重试 SSL 握手，导致页面极慢
+# HTTP(80) → 留言板页面
+# HTTPS(443) → 留言板 HTTPS 服务（app.py 自动 302 重定向到 HTTP 留言板）
 
 # Guest 入方向 DNAT（访客 → 留言板）
 iptables -t nat -A PREROUTING -i br-guest -p tcp --dport 80 \

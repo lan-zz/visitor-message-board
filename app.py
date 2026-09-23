@@ -37,6 +37,20 @@ for exts in ALLOWED_EXT.values():
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_BYTES
 
+
+# ─── HTTPS 劫持重定向 ────────────────────────────────────────────────────────
+# Captive portal 场景：DNS 劫持后，访客访问任意 HTTPS 网站会被 DNAT 到本服务的
+# 8091 端口（自签证书）。如果直接渲染完整页面，浏览器会因证书问题反复重试导致卡顿。
+# 正确做法：只返回 302 跳转到 HTTP 留言板，浏览器瞬间完成跳转，无卡顿。
+# 直接访问 https://192.168.8.1:8091（语音留言）不受影响，正常服务。
+
+@app.before_request
+def redirect_https_to_http():
+    """非直接访问的 HTTPS 请求 → 302 到 HTTP 留言板"""
+    if request.is_secure and request.host != '192.168.8.1':
+        from flask import redirect
+        return redirect('http://192.168.8.1:8090', code=302)
+
 _db_lock = threading.Lock()
 
 

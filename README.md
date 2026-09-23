@@ -132,7 +132,7 @@ openssl req -new -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
 在 LuCI → 网络 → 防火墙中：
 
 - 新建区域 `guest_zone`，Input=Reject，Output=Accept，Forward=Reject
-- 放行：DNS（53）、DHCP（67）、HTTP（8090）
+- 放行：DNS（53）、DHCP（67）、HTTP（8090）、HTTPS（8091）
 - 拒绝：到 wan、到 lan
 - Guest 区域转发到 wan：关闭
 
@@ -309,6 +309,7 @@ docker restart visitor-board
 OpenWrt Guest 网关 192.168.8.1
   │  nftables/iptables 强制门户
   │  HTTP(80) → DNAT → 本机 8090
+  │  HTTPS(443) → DNAT → 本机 8091 → 302 重定向到 HTTP
   │
   ▼
 访客留言板容器（--network host）
